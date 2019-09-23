@@ -31,6 +31,9 @@ public class TimeServer {
             ServerBootstrap boot =  new ServerBootstrap();
             boot.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
+                    //***关键：在这里我们使用一个特殊的类，ChannelInitializer 。
+                    // 当一个新的连接被接受，一个新的子 Channel 将被创建， ChannelInitializer 会添加我们XXXXServerHandler 的实例到 Channel 的 ChannelPipeline。
+                    // 正如我们如前所述，如果有入站信息，这个处理器将被通知。
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
