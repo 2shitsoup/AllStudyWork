@@ -15,12 +15,14 @@ import io.netty.util.concurrent.GlobalEventExecutor;
  * @Created by JiuyanLAY
  */
 public class TextWebSocketFrameHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    
+
+    //创建 DefaultChannelGroup 用来 保存所有连接的的 WebSocket channel
     public static ChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
         Channel incoming = ctx.channel();
+        msg.retain();
         for (Channel channel : channels) {
             if (channel != incoming){
                 channel.writeAndFlush(new TextWebSocketFrame("[" + incoming.remoteAddress() + "]" + msg.text()));

@@ -16,12 +16,12 @@ import java.net.URL;
  * @Date: 2019-09-19 11:04
  * @Created by JiuyanLAY
  */
-public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class MyHttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
     private final String wsUri;
     private static final File INDEX;
 
     static {
-        URL location = HttpRequestHandler.class.getProtectionDomain().getCodeSource().getLocation();
+        URL location = MyHttpRequestHandler.class.getProtectionDomain().getCodeSource().getLocation();
         try {
             String path = location.toURI()+"WebsocketChatClient.html";
             path = !path.contains("file:") ? path : path.substring(5);
@@ -31,12 +31,16 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         }
     }
 
-    public HttpRequestHandler(String wsUri) {
+    public MyHttpRequestHandler(String wsUri) {
         this.wsUri = wsUri;
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
+        /**
+         * 如果该 HTTP 请求被发送到URI “/ws”，则调用 FullHttpRequest 上的 retain()，并通过调用 fireChannelRead(msg) 转发到下一个 ChannelInboundHandler。
+         * retain() 的调用是必要的，因为 channelRead() 完成后，它会调用 FullHttpRequest 上的 release() 来释放其资源。
+         */
         //如果请求是 WebSocket 升级，递增引用计数器（保留）并且将它传递给在 ChannelPipeline 中的下个 ChannelInboundHandler
         if (wsUri.equalsIgnoreCase(request.getUri())) {
             ctx.fireChannelRead(request.retain());
@@ -59,12 +63,21 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             }
             //写 HttpResponse 到客户端
             ctx.write(response);
+            /**
+             * 如果传输过程既没有要求加密也没有要求压缩，
+             * 那么把 index.html 的内容存储在一个 DefaultFileRegion 里就可以达到最好的效率。这将利用零拷贝来执行传输。
+             * 出于这个原因，我们要检查 ChannelPipeline 中是否有一个 SslHandler。如果是的话，我们就使用 ChunkedNioFile。
+             */
             //写 index.html 到客户端，判断 SslHandler 是否在 ChannelPipeline 来决定是使用 DefaultFileRegion 还是 ChunkedNioFile
             if (ctx.pipeline().get(SslHandler.class) == null) {     //7
+                //只适用于直接传输一个文件的内容,没有执行的数据应用程序的处理。
                 ctx.write(new DefaultFileRegion(file.getChannel(), 0, file.length()));
             } else {
+                //有SslHandler处理，则需要：将数据从文件系统复制到用户内存是必需的,您可以使用 ChunkedWriteHandler。这个类提供了支持异步写大数据流不引起高内存消耗。
                 ctx.write(new ChunkedNioFile(file.getChannel()));
             }
+
+
             //写并刷新 LastHttpContent 到客户端，标记响应完成
             ChannelFuture future = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 

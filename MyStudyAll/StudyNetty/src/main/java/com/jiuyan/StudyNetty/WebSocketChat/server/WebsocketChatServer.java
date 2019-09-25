@@ -38,7 +38,7 @@ public class WebsocketChatServer {
             System.out.println("WebsocketChatServer 启动了");
 
             // 绑定端口，开始接收进来的连接
-            // （调用 sync() 的原因是当前线程阻塞）
+            // （调用 sync() 的原因是使当前线程阻塞）
             ChannelFuture f = b.bind(port).sync(); // (7)
 
             // 等待服务器  socket 关闭 。
